@@ -243,3 +243,5 @@ def drawmap(rat_fog1, rat_cloud1, outname, titlename, cloudflag = False):
 
     plt.close(fig)
     print('draw %s success...' %(outname))
+
+
