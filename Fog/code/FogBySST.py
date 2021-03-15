@@ -1,5 +1,12 @@
-#!/usr/bin/env python
-# coding: utf-8
+# coding:utf-8
+'''
+@Project  : L4_merge.py
+@File     : FogBySST.py
+@Modify Time      @Author    @Version    @Desciption
+------------      -------    --------    -----------
+2021/3/15 20:14   libin      1.0         
+ 
+'''
 import glob
 import os, sys
 import datetime
@@ -12,6 +19,7 @@ from WriteHDF import WriteHDF
 from config import *
 
 from get_filelist import get_filelist
+from ncpro import readnc, writenc
 
 # 分段时间调度令：python L4_merge.py  20200101 20200107 0000 0430
 # 连续时间调度令：python L4_merge.py  202001010000 202001070430
@@ -45,6 +53,82 @@ def datacov(data, inttmp):
     return outdata
 
 
+def interp2d(longitude, latitude,data):
+    from scipy import interpolate
+    yy = np.arange(ProjectionMinLatitude, ProjectionMaxLatitude, ProjectionResolution)
+    xx = np.arange(ProjectionMinLongitude, ProjectionMaxLongitude, ProjectionResolution)
+    fit = interpolate.interp2d(longitude, latitude, data)
+    temp = fit(xx, yy)
+
+    return temp[::-1]
+
+def Interplate(ERA5_Surf_File):
+    latitude = readnc(ERA5_Surf_File, 'latitude')
+    longitude = readnc(ERA5_Surf_File, 'longitude')
+
+    sat = readnc(ERA5_Surf_File, 't2m')
+    sst = readnc(ERA5_Surf_File, 'sst')
+    u10 = readnc(ERA5_Surf_File, 'u10')
+    v10 = readnc(ERA5_Surf_File, 'v10')
+    # 计算风速和风向
+    ws = np.sqrt(np.power(u10, 2) + np.power(v10, 2))
+    LON, LAT = np.meshgrid(longitude, latitude)
+    print(LON.shape)
+    print(ws.shape)
+    lw = 5*ws / ws.max()
+
+
+    import matplotlib.pyplot as plt
+
+    # strm = plt.streamplot(LON, LAT, u10[0], v10[0], color=ws[0], linewidth=2, cmap='autumn')
+    strm = plt.streamplot(LON, LAT, u10[0], v10[0], density=[0.5, 1], color='k')
+    plt.show()
+    exit()
+
+    sat = interp2d(longitude, latitude, sat[0])
+    sst = interp2d(longitude, latitude, sst[0])
+    u10 = interp2d(longitude, latitude, u10[0])
+    v10 = interp2d(longitude, latitude, v10[0])
+
+    # 计算风速和风向
+    ws = np.sqrt(np.power(u10, 2) + np.power(v10, 2))
+    wd = np.arctan(u10 / v10) * 180 / np.pi
+    wd[(u10 != 0) & (v10 < 0)] += 180
+    wd[(u10 < 0) & (v10 > 0 )] += 360
+    wd[(u10 == 0) & (v10 > 0)] = 0
+    wd[(u10 == 0) & (v10 < 0)] = 180
+    wd[(u10 > 0) & (v10 == 0)] = 90
+    wd[(u10 < 0) & (v10 == 0)] = 270
+    wd[(u10 == 0) & (v10 == 0)] = -999
+
+    diff_sst = sst - sat
+
+
+
+    return diff_sst
+
+def ERA5_Time_Match(nwppath, nowdate):
+    filelist = glob.glob(os.path.join(nwppath, 'surface_%s.nc' %(nowdate.strftime('%Y%m%d%H'))))
+    if len(filelist) == 0 :
+        print('%s is not exist, will continue!!!' %(
+            os.path.join(nwppath, 'surface_%s.nc' %(nowdate.strftime('%Y%m%d%H')))))
+        return None
+    else:
+        return filelist[0]
+
+
+def MatchERA5(nwppath, nowdate):
+
+    ERA5_Surf_File = ERA5_Time_Match(nwppath, nowdate)
+    if ERA5_Surf_File is None :
+        return None
+
+    sstbias = Interplate(ERA5_Surf_File)
+
+    # flag = self.cal_wind(ERA5_Surf_File)
+    # classflag = self.ERA5_View_Match(flag)
+
+    return sstbias
 
 
 if __name__ == "__main__":
@@ -78,9 +162,9 @@ if __name__ == "__main__":
 
 
     print('Fog_L2_Name:', Fog_L2_Name)
-    print('Fog_L3_Name:', Fog_L3_Name)
+    print('Fog_L3_Name:', Fog_SST_Name)
     # 拼接输出目录和文件名
-    outfc = Fog_L3_Name.format(YMS=YMS, YMSS=YMSS, type="L4")
+    outfc = Fog_SST_Name.format(YMS=YMS, YMSS=YMSS, type="L4")
     outpath = os.path.dirname(outfc)
     # print(outfc)
     if not os.path.exists(outpath):
@@ -104,6 +188,10 @@ if __name__ == "__main__":
     for filename in filelist:
         if not os.path.exists(filename):
             continue
+
+        namelist = os.path.basename(filename).split('_')
+        nowdate = datetime.datetime.strptime('%s %s' %(namelist[2], namelist[4][0:4]), '%Y%m%d %H%M')
+        classflag = MatchERA5(NWP_PATH, nowdate)
 
         # 读取文件
         f = SD.SD(filename, SD.SDC.READ)
@@ -134,14 +222,14 @@ if __name__ == "__main__":
     # plot2(rat_cloud, outfc)
     if caseflag == 1:
         titlename = "H8_%s-%s_%s-%s" %(istartime.strftime('%Y%m%d'),
-                                           iendtime.strftime('%Y%m%d'),
-                                           istartime.strftime('%H:%M'),
-                                           iendtime.strftime('%H:%M'),
-                                           )
+                                       iendtime.strftime('%Y%m%d'),
+                                       istartime.strftime('%H:%M'),
+                                       iendtime.strftime('%H:%M'),
+                                       )
     elif caseflag == 2 :
         titlename = "H8_%s-%s" % (istartime.strftime('%Y%m%d %H:%M'),
-                                            iendtime.strftime('%Y%m%d %H:%M'),
-                                            )
+                                  iendtime.strftime('%Y%m%d %H:%M'),
+                                  )
     # draw()
     # draw(rat_fog, outfc, titlename)
 

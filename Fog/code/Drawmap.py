@@ -36,18 +36,23 @@ if __name__ == '__main__':
     # f.close()
     #
     import random
-    X = np.random.rand(10000).reshape(100,100) * 1000
+    X = np.random.rand(10000).reshape(100,100)
+    # X = np.arange(64).reshape(8,8)
 
-    print(X.shape)
-    # Z = fastcluster.linkage(X, method = 'single')
-    # plot_with_labels(Z, 2)
-    #
+    print(X)
+    Z = fastcluster.linkage(X, method = 'single')
+    plot_with_labels(Z, 2)
+    exit()
     # D = pdist(X, metric = 'cityblock')
     # Z = fastcluster.linkage(D, method = 'weighted')
     # plot_with_labels(Z, 3)
-
-
-    for method in ["single", "complete", "average", "weighted", "ward", "centroid" , "median"]:
-        # D = pdist(X, metric = 'cityblock')
-        Z = fastcluster.linkage(X, method = method)
-        plot_with_labels(Z, 3)
+    from scipy import spatial
+    distance = spatial.distance.pdist(X)
+    import fastcluster
+    linkage = fastcluster.linkage(distance,method="complete")
+    plot_with_labels(linkage, 3)
+    print(linkage)
+    # for method in ["single", "complete", "average", "weighted", "ward", "centroid" , "median"]:
+    #     # D = pdist(X, metric = 'cityblock')
+    #     Z = fastcluster.linkage(X, method = method)
+    #     plot_with_labels(Z, 2)

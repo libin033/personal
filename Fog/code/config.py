@@ -14,7 +14,14 @@ import os
 import numpy as np
 
 
+Fog_L2_Name = r"../data/{YYYY}/{YYYYMMDD}/SEFOG_AHI_{stime}*_{HM}*_1500_1500_S0204_001.hdf"
 
+Fog_L3_Name = r"../result/FOG/MUTS_MUTS_Latlon_L3_FOG_AVG_{YMS}_{YMSS}_2000M_{type}_X.HDF"
+
+Fog_FRE_Name = r"../result/IMAGE/MUTS_MUTS_Latlon_L3_FOG_FRE_{YMS}_{YMSS}_2000M_{type}_X.nc"
+Fog_SST_Name = r"../result/IMAGE/MUTS_MUTS_Latlon_L3_FOG_SST_{YMS}_{YMSS}_2000M_{type}_X.nc"
+
+NWP_PATH = r'D:\personal\Fog\data\era5'
 
 ProjectionMinLongitude = 105.0
 ProjectionMaxLongitude = 135.0
